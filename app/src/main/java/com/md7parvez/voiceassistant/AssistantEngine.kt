@@ -97,7 +97,6 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
                 .setMaxTokens(128)
-                .setTemperature(0.7f)
                 .setRandomSeed(42)
                 .build()
 
