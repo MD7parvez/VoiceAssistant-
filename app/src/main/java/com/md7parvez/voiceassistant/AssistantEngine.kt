@@ -3,6 +3,8 @@ package com.md7parvez.voiceassistant
 import android.content.Context
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Conversation
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.LogSeverity
@@ -89,7 +91,7 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
 
         val newEngine = Engine(config)
         newEngine.initialize()
-        val newConversation = newEngine.createConversation()
+        val newConversation = newEngine.createConversation(ConversationConfig(systemInstruction = Contents.of("You are My Field AI, a private offline neural-network assistant on an Android phone. Be concise, useful, honest and friendly. Never claim internet access or claim to see camera data unless it is explicitly supplied by the app.")))
 
         engine = newEngine
         conversation = newConversation
