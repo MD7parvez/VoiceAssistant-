@@ -9,11 +9,15 @@ android {
 
     defaultConfig {
         applicationId = "com.md7parvez.voiceassistant"
-        minSdk = 24
+        minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.4-neural"
+        versionCode = 4
+        versionName = "0.4-y01"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a")
+        }
     }
 
     compileOptions {
@@ -26,20 +30,8 @@ android {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
-
-    packaging {
-        jniLibs {
-            pickFirsts += setOf(
-                "lib/arm64-v8a/libLiteRt.so",
-                "lib/arm64-v8a/libLiteRtClGlAccelerator.so",
-                "lib/x86_64/libLiteRt.so",
-                "lib/x86_64/libLiteRtClGlAccelerator.so"
-            )
-        }
-    }
 }
 
 dependencies {
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.0")
     testImplementation("junit:junit:4.13.2")
 }
