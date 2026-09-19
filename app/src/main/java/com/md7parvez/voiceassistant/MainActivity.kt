@@ -49,7 +49,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setBackgroundColor(Color.rgb(10, 15, 18))
         }
         root.addView(tv("MY FIELD AI", 28f))
-        root.addView(tv("Offline voice assistant • v0.3", 13f))
+        root.addView(tv("Offline neural voice assistant • v0.4", 13f))
 
         indicator = tv("●  IDLE", 26f).apply {
             gravity = 1
@@ -57,11 +57,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         }
         root.addView(indicator, LinearLayout.LayoutParams(-1, 0, 0.6f))
 
-        status = tv("100% offline mode — no API key required", 14f)
+        status = tv("100% offline neural AI — no API key required", 14f)
         root.addView(status)
 
         transcript = tv(
-            "Type a message or press SPEAK.\n\n" +
+            "Speak or type a message.\n\n" +
                 "Teach me with: “remember that I like robotics.”\n" +
                 "Ask: “what do you remember?”",
             16f
@@ -98,7 +98,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setOnClickListener { openXplore() }
         })
         root.addView(tv(
-            "No internet or API key is needed. Voice output uses the phone's installed TTS engine.",
+            "The neural model runs locally on the phone. Voice output uses the phone's installed TTS engine.",
             12f
         ))
         setContentView(root)
@@ -133,12 +133,12 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     })
                     if (!started) {
                         state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
-                        status.text = "Text response ready — voice output unavailable"
+                        status.text = "Neural text response ready — voice output unavailable"
                         render()
                     }
                 } else {
                     state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
-                    status.text = "Text response ready — TTS unavailable"
+                    status.text = "Neural text response ready — TTS unavailable"
                     render()
                 }
             }
