@@ -32,22 +32,11 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Download embedded local neural model
-        run: |
-          mkdir -p app/src/main/assets
-          curl --fail --location --retry 3 \
-            "https://huggingface.co/litert-community/SmolLM2-135M-Instruct/resolve/main/SmolLM2_135M_Instruct.litertlm?download=true" \
-            -o app/src/main/assets/SmolLM2_135M_Instruct.litertlm
-          test -s app/src/main/assets/SmolLM2_135M_Instruct.litertlm
-          sha256sum app/src/main/assets/SmolLM2_135M_Instruct.litertlm
-
-      - name: Build debug APK
+      - name: Build Vivo Y01 ARMv7 APK
         run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: my-field-ai-neural-debug
+          name: my-field-ai-y01-armv7-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-
-      # Build trigger refresh: 2026-09-19
