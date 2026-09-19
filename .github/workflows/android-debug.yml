@@ -27,16 +27,25 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Download offline neural model
+        run: |
+          mkdir -p app/src/main/assets
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true" \
+            -o app/src/main/assets/SmolLM-135M-Instruct.task
+          test -s app/src/main/assets/SmolLM-135M-Instruct.task
+          ls -lh app/src/main/assets/SmolLM-135M-Instruct.task
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Build Vivo Y01 ARMv7 APK
+      - name: Build Vivo Y01 ARMv7 Neural APK
         run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: my-field-ai-y01-armv7-debug
+          name: my-field-ai-y01-neural-armv7-debug
           path: app/build/outputs/apk/debug/app-debug.apk
