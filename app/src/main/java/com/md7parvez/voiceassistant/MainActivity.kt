@@ -4,32 +4,35 @@ import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.hardware.camera2.*
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.*
+import android.hardware.camera2.*
 
 class MainActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var status: TextView
     private lateinit var transcript: TextView
     private lateinit var indicator: TextView
+    private lateinit var input: EditText
     private lateinit var speech: SpeechInputManager
     private lateinit var output: SpeechOutputManager
     private lateinit var sensors: SensorManagerService
-    private val engine = LocalAssistantEngine()
+    private lateinit var engine: AssistantEngine
     private var state = AssistantState.IDLE
     private var xplore = false
     private var surface: SurfaceView? = null
     private var camera: CameraDevice? = null
     private val micCode = 10
     private val cameraCode = 11
+    private val prefs by lazy { getSharedPreferences("ai_settings", MODE_PRIVATE) }
 
     override fun onCreate(saved: Bundle?) {
         super.onCreate(saved)
         speech = SpeechInputManager(this)
         output = SpeechOutputManager(this)
         sensors = SensorManagerService(this)
+        engine = GeminiAssistantEngine(this) { prefs.getString("gemini_api_key", "").orEmpty() }
         buildMain()
     }
 
@@ -47,30 +50,89 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setBackgroundColor(Color.rgb(10, 15, 18))
         }
         root.addView(tv("MY FIELD AI", 28f))
-        root.addView(tv("Offline field intelligence • v0.2", 13f))
+        root.addView(tv("Voice-first AI assistant • v0.2", 13f))
 
         indicator = tv("●  IDLE", 26f).apply {
             gravity = 1
             setTextColor(Color.rgb(128, 203, 196))
         }
-        root.addView(indicator, LinearLayout.LayoutParams(-1, 0, 0.8f))
+        root.addView(indicator, LinearLayout.LayoutParams(-1, 0, 0.6f))
 
-        status = tv("Ready — voice assistant online", 14f)
+        status = tv(if (hasApiKey()) "AI ready — text and voice available" else "AI key needed — tap AI SETTINGS", 14f)
         root.addView(status)
 
-        transcript = tv("Ask about first aid, field skills, engineering, sensors, or simulation planning.", 16f)
-        root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1.4f))
+        transcript = tv("Type a message or press SPEAK. AI responses appear here even if voice output is unavailable.", 16f)
+        root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1.5f))
+
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        input = EditText(this).apply {
+            hint = "Type a message…"
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.LTGRAY)
+            setSingleLine(false)
+        }
+        row.addView(input, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(Button(this).apply {
+            text = "SEND"
+            setOnClickListener { sendTypedMessage() }
+        })
+        root.addView(row)
 
         root.addView(Button(this).apply {
             text = "SPEAK"
             setOnClickListener { startVoice() }
         })
         root.addView(Button(this).apply {
+            text = "AI SETTINGS"
+            setOnClickListener { showAiSettings() }
+        })
+        root.addView(Button(this).apply {
             text = "XPLORE • CAMERA"
             setOnClickListener { openXplore() }
         })
-        root.addView(tv("OFFLINE MODE: core assistant and device tools work without internet. Advanced AI models can be added later.", 12f))
+        root.addView(tv("Text reply is always shown. Voice reply is optional and depends on the phone's TTS service.", 12f))
         setContentView(root)
+    }
+
+    private fun hasApiKey() = prefs.getString("gemini_api_key", "").orEmpty().isNotBlank()
+
+    private fun sendTypedMessage() {
+        val text = input.text.toString().trim()
+        if (text.isBlank()) return
+        input.text.clear()
+        transcript.text = "You: $text"
+        processWithAi(text)
+    }
+
+    private fun processWithAi(text: String) {
+        state = AssistantState.PROCESSING
+        render()
+        Thread {
+            val response = engine.processUserInput(text, AssistantContext(sensors.summary(), xplore))
+            runOnUiThread {
+                transcript.append("\n\nMy Field AI: $response")
+                // Text is committed to the UI before TTS is attempted.
+                if (output.ready) {
+                    state = AssistantState.SPEAKING
+                    render()
+                    val started = output.speak(response, {}, {
+                        runOnUiThread {
+                            state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
+                            render()
+                        }
+                    })
+                    if (!started) {
+                        state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
+                        status.text = "Text response ready — voice output unavailable"
+                        render()
+                    }
+                } else {
+                    state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
+                    status.text = "Text response ready — TTS unavailable"
+                    render()
+                }
+            }
+        }.start()
     }
 
     private fun startVoice() {
@@ -84,17 +146,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             override fun onListening() { status.text = "Listening…" }
             override fun onResult(text: String) {
                 transcript.text = "You: $text"
-                state = AssistantState.PROCESSING
-                render()
-                val response = engine.processUserInput(text, AssistantContext(sensors.summary(), xplore))
-                transcript.append("\n\nMy Field AI: $response")
-                output.speak(response, {
-                    state = AssistantState.SPEAKING
-                    render()
-                }, {
-                    state = if (xplore) AssistantState.XPLORE else AssistantState.IDLE
-                    render()
-                })
+                processWithAi(text)
             }
             override fun onError(message: String) {
                 status.text = message
@@ -104,15 +156,40 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         })
     }
 
+    private fun showAiSettings() {
+        val field = EditText(this).apply {
+            hint = "Paste Gemini API key"
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Gemini AI settings")
+            .setMessage("For this prototype, the key is stored only in this app's private preferences. Do not paste a key into GitHub or source code.")
+            .setView(field)
+            .setPositiveButton("SAVE") { _, _ ->
+                val key = field.text.toString().trim()
+                prefs.edit().putString("gemini_api_key", key).apply()
+                status.text = if (key.isBlank()) "Gemini key cleared" else "Gemini key saved on this device"
+            }
+            .setNegativeButton("CANCEL", null)
+            .setNeutralButton("CLEAR") { _, _ ->
+                prefs.edit().remove("gemini_api_key").apply()
+                status.text = "Gemini key cleared"
+            }
+            .show()
+    }
+
     private fun render() {
         indicator.text = "●  " + state.name
-        status.text = when (state) {
-            AssistantState.LISTENING -> "Listening…"
-            AssistantState.PROCESSING -> "Processing…"
-            AssistantState.SPEAKING -> "Speaking…"
-            AssistantState.XPLORE -> "Xplore Mode active"
-            AssistantState.ERROR -> "An error occurred"
-            else -> "Ready — offline"
+        if (state != AssistantState.ERROR) {
+            status.text = when (state) {
+                AssistantState.LISTENING -> "Listening…"
+                AssistantState.PROCESSING -> "Thinking with Gemini…"
+                AssistantState.SPEAKING -> "Speaking…"
+                AssistantState.XPLORE -> "Xplore Mode active"
+                AssistantState.IDLE -> if (hasApiKey()) "AI ready" else "AI key needed — tap AI SETTINGS"
+                else -> status.text
+            }
         }
     }
 
@@ -166,11 +243,16 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                             }.build()
                             s.setRepeatingRequest(request, null, null)
                         }
-                        override fun onConfigureFailed(s: CameraCaptureSession) {}
+                        override fun onConfigureFailed(s: CameraCaptureSession) {
+                            runOnUiThread { status.text = "Camera preview configuration failed" }
+                        }
                     }, null)
                 }
                 override fun onDisconnected(c: CameraDevice) { c.close() }
-                override fun onError(c: CameraDevice, error: Int) { c.close() }
+                override fun onError(c: CameraDevice, error: Int) {
+                    c.close()
+                    runOnUiThread { status.text = "Camera unavailable" }
+                }
             }, null)
         } catch (_: Exception) {
             if (::status.isInitialized) status.text = "Camera unavailable"
