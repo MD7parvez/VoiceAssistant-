@@ -97,7 +97,6 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
                 .setMaxTokens(128)
-                .setRandomSeed(42)
                 .build()
 
             LlmInference.createFromOptions(appContext, options).also { llm = it }
