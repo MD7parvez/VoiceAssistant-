@@ -64,7 +64,7 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
                 $input
             """.trimIndent()
 
-            conversation!!.sendMessage(prompt, maxOutputToken = 128).text.trim()
+            conversation!!.sendMessage(prompt, maxOutputToken = 128).toString().trim()
                 .ifBlank { "The local neural model returned an empty response." }
         } catch (e: Exception) {
             "Local neural AI error: ${e.message ?: "unknown error"}"
@@ -91,7 +91,15 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
 
         val newEngine = Engine(config)
         newEngine.initialize()
-        val newConversation = newEngine.createConversation(ConversationConfig(systemInstruction = Contents.of("You are My Field AI, a private offline neural-network assistant on an Android phone. Be concise, useful, honest and friendly. Never claim internet access or claim to see camera data unless it is explicitly supplied by the app.")))
+        val newConversation = newEngine.createConversation(
+            ConversationConfig(
+                systemInstruction = Contents.of(
+                    "You are My Field AI, a private offline neural-network assistant on an Android phone. " +
+                        "Be concise, useful, honest and friendly. " +
+                        "Never claim internet access or claim to see camera data unless it is explicitly supplied by the app."
+                )
+            )
+        )
 
         engine = newEngine
         conversation = newConversation
