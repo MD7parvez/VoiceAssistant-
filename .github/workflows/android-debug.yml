@@ -16,7 +16,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
@@ -25,12 +25,21 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.2.1"
+          gradle-version: "8.9"
+
+      - name: Download embedded local neural model
+        run: |
+          mkdir -p app/src/main/assets
+          curl --fail --location --retry 3 \
+            "https://huggingface.co/litert-community/SmolLM2-135M-Instruct/resolve/main/SmolLM2_135M_Instruct.litertlm?download=true" \
+            -o app/src/main/assets/SmolLM2_135M_Instruct.litertlm
+          test -s app/src/main/assets/SmolLM2_135M_Instruct.litertlm
+          sha256sum app/src/main/assets/SmolLM2_135M_Instruct.litertlm
 
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
@@ -38,5 +47,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: my-field-ai-debug
+          name: my-field-ai-neural-debug
           path: app/build/outputs/apk/debug/app-debug.apk
