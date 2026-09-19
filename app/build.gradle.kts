@@ -33,6 +33,6 @@ android {
 }
 
 dependencies {
-    implementation("com.google.mediapipe:tasks-genai:0.10.26.1")
+    implementation("com.google.mediapipe:tasks-genai:0.10.27")
     testImplementation("junit:junit:4.13.2")
 }
