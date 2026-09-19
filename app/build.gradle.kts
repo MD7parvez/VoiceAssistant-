@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.md7parvez.voiceassistant"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 35
         versionCode = 3
         versionName = "0.4-neural"
