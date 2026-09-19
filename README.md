@@ -1,36 +1,60 @@
-# VoiceAssistant — Version 0.1
+# VoiceAssistant — Version 0.2
 
-## Build status
+## Real AI integration
 
-The repository contains a lightweight Kotlin Android application. Build verification must be run in an Android/Gradle environment with Android SDK platform 34 installed:
+Version 0.2 connects the voice/text assistant to the Gemini API through a lightweight REST client.
 
-```bash
+- Voice: SpeechRecognizer → Gemini → on-screen response → optional TTS
+- Text: typed message → Gemini → on-screen response → optional TTS
+
+**Text output is always the primary fallback.** If TTS is unavailable, the AI answer remains visible.
+
+## Configure Gemini
+
+Open the app and tap **AI SETTINGS**, then enter a Gemini API key. The key is stored in the app's private preferences and is never written to the repository.
+
+Treat API keys as secrets. For production, do not hard-code a provider credential into a mobile APK; use a server-side backend/proxy.
+
+The prototype uses the supported \`generateContent\` REST endpoint to keep the Android app lightweight.
+
+## Build
+
+Run:
+
+\`\`\`bash
 ./gradlew test
 ./gradlew assembleDebug
-```
+\`\`\`
 
-The expected debug APK path is `app/build/outputs/apk/debug/app-debug.apk`. This repository environment does not provide a local Gradle execution tool, so command results and APK generation still require verification in Android Studio or a configured CI runner.
+Expected APK:
+
+\`app/build/outputs/apk/debug/app-debug.apk\`
+
+The GitHub Actions workflow builds a debug APK on pushes to \`main\` and manual workflow runs.
 
 ## Implemented
 
-- Dark voice-assistant UI with explicit IDLE, LISTENING, PROCESSING, SPEAKING, XPLORE, and ERROR states.
-- Runtime `RECORD_AUDIO` and `CAMERA` permissions.
-- Android `SpeechRecognizer` input with availability, timeout, network, busy, permission, and empty-result handling.
-- Android TextToSpeech with initialization, language, empty-input, repeat, and shutdown handling.
-- Replaceable `AssistantEngine` and deterministic offline `LocalAssistantEngine`.
-- Dynamic sensor discovery with opt-in listener registration and cleanup.
-- Camera2 preview foundation and Xplore Mode entry/exit.
-- Explicit `NullVisionProcessor`; real AI vision is not implemented.
-- JVM unit tests for the local engine and state transitions.
+- Real Gemini text generation.
+- Bounded in-memory conversation history.
+- Voice input through Android SpeechRecognizer.
+- Typed-message fallback.
+- Text response displayed before TTS is attempted.
+- TTS with graceful fallback.
+- Runtime microphone and camera permissions.
+- Dynamic sensor discovery.
+- Camera2 Xplore preview foundation.
+- Local fallback engine when Gemini is not configured or available.
+- Network/API error handling without crashing the app.
 
-## Physical testing required
+## Current limitations
 
-Vivo Y01 / Android 12 testing is still required for microphone permission behavior, the installed speech service, TTS language availability, camera hardware and rotation, sensor availability, UI responsiveness, memory use, and battery impact.
+- Gemini requires internet access.
+- A Gemini API key must be configured on the test device.
+- The prototype stores the key locally on-device; this is not production-grade secret management.
+- Xplore currently provides camera preview only; camera-frame AI vision is not connected yet.
+- The app has no always-on microphone or background listening.
+- Physical Vivo Y01 testing is still required.
 
-## Known limitations
+## Security note
 
-There is no cloud LLM, API provider, persistent conversation storage, wake word, always-on microphone/camera, frame upload, computer vision, background service, or external hardware support. The camera preview remains hosted by the initial activity implementation and should be tested on-device for configuration changes.
-
-## Next step
-
-After build and physical-device verification, add the AI/LLM integration behind `AssistantEngine`; do not couple a provider to the Android UI.
+Never commit an API key to GitHub. If a key is exposed, revoke/replace it. For a production release, move Gemini requests behind a server-side backend so the mobile APK does not contain the provider credential.
