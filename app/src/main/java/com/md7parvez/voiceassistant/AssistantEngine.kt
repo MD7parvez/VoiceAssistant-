@@ -64,7 +64,7 @@ class LocalAssistantEngine(private val appContext: Context) : AssistantEngine {
                 $input
             """.trimIndent()
 
-            conversation!!.sendMessage(prompt, maxOutputToken = 128).toString().trim()
+            conversation!!.sendMessage(prompt, maxOutputToken = 128).text.trim()
                 .ifBlank { "The local neural model returned an empty response." }
         } catch (e: Exception) {
             "Local neural AI error: ${e.message ?: "unknown error"}"
