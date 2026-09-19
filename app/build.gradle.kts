@@ -11,8 +11,8 @@ android {
         applicationId = "com.md7parvez.voiceassistant"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4-y01"
+        versionCode = 5
+        versionName = "0.5-y01-neural"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
@@ -33,5 +33,6 @@ android {
 }
 
 dependencies {
+    implementation("com.google.mediapipe:tasks-genai:0.10.26.1")
     testImplementation("junit:junit:4.13.2")
 }
