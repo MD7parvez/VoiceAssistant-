@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.md7parvez.voiceassistant"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.md7parvez.voiceassistant"
         minSdk = 23
-        targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        targetSdk = 35
+        versionCode = 3
+        versionName = "0.4-neural"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -24,8 +24,20 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packaging {
+        jniLibs {
+            pickFirsts += setOf(
+                "lib/arm64-v8a/libLiteRt.so",
+                "lib/arm64-v8a/libLiteRtClGlAccelerator.so",
+                "lib/x86_64/libLiteRt.so",
+                "lib/x86_64/libLiteRtClGlAccelerator.so"
+            )
+        }
+    }
 }
 
 dependencies {
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.0")
     testImplementation("junit:junit:4.13.2")
 }
