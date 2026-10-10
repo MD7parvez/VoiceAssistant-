@@ -2,6 +2,10 @@ package com.md7parvez.voiceassistant
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import java.io.File
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
@@ -19,6 +23,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var output: SpeechOutputManager
     private lateinit var sensors: SensorManagerService
     private lateinit var engine: AssistantEngine
+    private lateinit var modelStatus: TextView
+    private lateinit var speakButton: Button
+    private val whisperInput = LocalWhisperInputManager()
+    private var whisperRecording = false
+    private val modelCode = 12
     private var state = AssistantState.IDLE
     private var xplore = false
     private var surface: SurfaceView? = null
@@ -57,8 +66,15 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         }
         root.addView(indicator, LinearLayout.LayoutParams(-1, 0, 0.6f))
 
-        status = tv("100% offline neural AI — no API key required", 14f)
+        status = tv("Local-first AI • no cloud speech recognition", 14f)
         root.addView(status)
+
+        modelStatus = tv(modelStatusText(), 13f)
+        root.addView(modelStatus)
+        root.addView(Button(this).apply {
+            text = "LOAD WHISPER MODEL (.BIN)"
+            setOnClickListener { openModelPicker() }
+        })
 
         transcript = tv(
             "Speak or type a message.\n\n" +
@@ -82,10 +98,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         })
         root.addView(row)
 
-        root.addView(Button(this).apply {
-            text = "SPEAK"
+        speakButton = Button(this).apply {
+            text = if (whisperRecording) "STOP & TRANSCRIBE" else "SPEAK • LOCAL WHISPER"
             setOnClickListener { startVoice() }
-        })
+        }
+        root.addView(speakButton)
         root.addView(Button(this).apply {
             text = "CLEAR MEMORY"
             setOnClickListener {
@@ -150,20 +167,128 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), micCode)
             return
         }
-        state = AssistantState.LISTENING
-        render()
-        speech.start(object : SpeechInputManager.Listener {
-            override fun onListening() { status.text = "Listening…" }
-            override fun onResult(text: String) {
-                transcript.text = "You: $text"
-                processWithAi(text)
-            }
-            override fun onError(message: String) {
+        val modelPath = getSharedPreferences("whisper_model", MODE_PRIVATE).getString("path", null)
+        if (modelPath.isNullOrBlank() || !File(modelPath).exists()) {
+            openModelPicker()
+            status.text = "Choose a whisper.cpp-compatible model file first."
+            return
+        }
+
+        if (whisperRecording) {
+            whisperRecording = false
+            speakButton.text = "PROCESSING WHISPER…"
+            speakButton.isEnabled = false
+            status.text = "Transcribing locally. This may take a while on ARM32."
+            whisperInput.stop({ samples ->
+                Thread {
+                    val result = try {
+                        WhisperNative.transcribe(modelPath, samples, "auto")
+                    } catch (e: UnsatisfiedLinkError) {
+                        "ERROR: Local Whisper native engine failed to load: \${e.message ?: "unknown"}"
+                    } catch (e: Exception) {
+                        "ERROR: Whisper failed: \${e.message ?: "unknown"}"
+                    }
+                    runOnUiThread {
+                        speakButton.isEnabled = true
+                        speakButton.text = "SPEAK • LOCAL WHISPER"
+                        if (result.startsWith("ERROR:")) {
+                            status.text = result.removePrefix("ERROR:").trim()
+                            state = AssistantState.ERROR
+                            render()
+                        } else {
+                            transcript.text = "You: $result"
+                            processWithAi(result)
+                        }
+                    }
+                }.start()
+            }, { message ->
+                runOnUiThread {
+                    speakButton.isEnabled = true
+                    speakButton.text = "SPEAK • LOCAL WHISPER"
+                    status.text = message
+                    state = AssistantState.ERROR
+                    render()
+                }
+            })
+            render()
+            return
+        }
+
+        val started = whisperInput.start { message ->
+            runOnUiThread {
                 status.text = message
                 state = AssistantState.ERROR
                 render()
             }
-        })
+        }
+        if (started) {
+            whisperRecording = true
+            speakButton.text = "STOP & TRANSCRIBE"
+            status.text = "Recording on-device… tap STOP & TRANSCRIBE when finished."
+            state = AssistantState.LISTENING
+            render()
+        }
+    }
+
+    private fun modelStatusText(): String {
+        val path = getSharedPreferences("whisper_model", MODE_PRIVATE).getString("path", null)
+        val file = path?.let { File(it) }
+        return if (file != null && file.exists()) {
+            "Whisper model loaded: \${file.name} (\${file.length() / (1024 * 1024)} MB)"
+        } else {
+            "No Whisper model selected. Import a whisper.cpp ggml .bin model."
+        }
+    }
+
+    private fun openModelPicker() {
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/octet-stream"
+            }
+            startActivityForResult(intent, modelCode)
+        } catch (e: Exception) {
+            status.text = "File picker unavailable: \${e.message ?: "unknown error"}"
+        }
+    }
+
+    @Deprecated("Uses the Android document picker for compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != modelCode || resultCode != RESULT_OK) return
+        val uri: Uri = data?.data ?: return
+        Thread {
+            try {
+                var displayName = "whisper-model.bin"
+                contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (index >= 0) displayName = cursor.getString(index) ?: displayName
+                    }
+                }
+                if (!displayName.lowercase().endsWith(".bin")) {
+                    runOnUiThread { status.text = "Unsupported file. Choose a whisper.cpp ggml .bin model, not a PyTorch .bin file." }
+                    return@Thread
+                }
+                val target = File(filesDir, "whisper-model.bin")
+                contentResolver.openInputStream(uri).use { input ->
+                    if (input == null) throw IllegalStateException("Could not open selected file")
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+                if (target.length() < 10L * 1024L * 1024L) {
+                    target.delete()
+                    runOnUiThread { status.text = "That file is too small to be a Whisper model. Choose a converted ggml model." }
+                    return@Thread
+                }
+                getSharedPreferences("whisper_model", MODE_PRIVATE).edit().putString("path", target.absolutePath).apply()
+                runOnUiThread {
+                    modelStatus.text = modelStatusText()
+                    status.text = "Whisper model imported. It will run on this phone without internet."
+                }
+            } catch (e: Exception) {
+                runOnUiThread { status.text = "Model import failed: \${e.message ?: "unknown error"}" }
+            }
+        }.start()
     }
 
     private fun render() {
@@ -261,6 +386,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onDestroy() {
         speech.stop()
+        whisperInput.release()
         output.release()
         sensors.stop()
         camera?.close()
