@@ -184,9 +184,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     val result = try {
                         WhisperNative.transcribe(modelPath, samples, "auto")
                     } catch (e: UnsatisfiedLinkError) {
-                        "ERROR: Local Whisper native engine failed to load: \${e.message ?: "unknown"}"
+                        "ERROR: Local Whisper native engine failed to load: ${e.message ?: "unknown"}"
                     } catch (e: Exception) {
-                        "ERROR: Whisper failed: \${e.message ?: "unknown"}"
+                        "ERROR: Whisper failed: ${e.message ?: "unknown"}"
                     }
                     runOnUiThread {
                         speakButton.isEnabled = true
@@ -234,7 +234,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val path = getSharedPreferences("whisper_model", MODE_PRIVATE).getString("path", null)
         val file = path?.let { File(it) }
         return if (file != null && file.exists()) {
-            "Whisper model loaded: \${file.name} (\${file.length() / (1024 * 1024)} MB)"
+            "Whisper model loaded: ${file.name} (${file.length() / (1024 * 1024)} MB)"
         } else {
             "No Whisper model selected. Import a whisper.cpp ggml .bin model."
         }
@@ -248,7 +248,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             }
             startActivityForResult(intent, modelCode)
         } catch (e: Exception) {
-            status.text = "File picker unavailable: \${e.message ?: "unknown error"}"
+            status.text = "File picker unavailable: ${e.message ?: "unknown error"}"
         }
     }
 
@@ -286,7 +286,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     status.text = "Whisper model imported. It will run on this phone without internet."
                 }
             } catch (e: Exception) {
-                runOnUiThread { status.text = "Model import failed: \${e.message ?: "unknown error"}" }
+                runOnUiThread { status.text = "Model import failed: ${e.message ?: "unknown error"}" }
             }
         }.start()
     }
