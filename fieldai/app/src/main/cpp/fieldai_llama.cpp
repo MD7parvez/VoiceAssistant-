@@ -53,7 +53,7 @@ Java_com_parvez_fieldai_LocalLlm_nativeAsk(JNIEnv* env, jobject, jstring promptV
     if (!g_model || !g_ctx || !g_sampler) return env->NewStringUTF("Load a compatible GGUF model first.");
     const std::string prompt = jstring_to_string(env, promptValue);
     std::vector<llama_token> tokens(2048);
-    const int n = llama_tokenize(g_model, prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, true);
+    const int n = llama_tokenize(llama_model_get_vocab(g_model), prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, true);
     if (n <= 0 || n >= (int)tokens.size()) return env->NewStringUTF("Prompt is too long for this model/context.");
     tokens.resize(n);
     llama_memory_clear(llama_get_memory(g_ctx), true);
