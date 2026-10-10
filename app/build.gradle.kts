@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    ndkVersion = "27.2.12479018"
     namespace = "com.md7parvez.voiceassistant"
     compileSdk = 35
 
@@ -12,11 +13,24 @@ android {
         minSdk = 23
         targetSdk = 35
         versionCode = 5
-        versionName = "0.5-y01-neural"
+        versionName = "0.6-whisper-local"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += listOf("armeabi-v7a")
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += listOf("-O3")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
